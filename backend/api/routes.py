@@ -1,40 +1,36 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from services.ml_service import MLService
-from services.rules_engine import RulesEngine
+from api.facade import BackendFacade
 
 router = APIRouter()
-ml_service = MLService()
+facade = BackendFacade()
 
 class TicketRequest(BaseModel):
     texto: str
 
+class MoveTicketRequest(BaseModel):
+    ticket_id: int
+    estado_actual: str
+    nuevo_estado: str
+
 @router.post("/classify")
 def classify_ticket_endpoint(ticket: TicketRequest):
-    """
-    Ruta urgente para Luis (Frontend) y Adrian (BD).
-    Recibe el texto, lo evalúa con IA y devuelve el resultado.
-    """
-    # 1. Evaluamos con la IA
-    ml_result = ml_service.predict_ticket(ticket.texto)
-    
-    # 2. Aplicamos reglas de negocio (confianza)
-    evaluation = RulesEngine.evaluate_ticket(ml_result)
-    
-    return {
-        "texto_original": ticket.texto,
-        "categoria_asignada": evaluation["categoria_sugerida"],
-        "nivel_confianza": evaluation["nivel_confianza"],
-        "estado_asignacion": evaluation["estado_asignacion"],
-        "mensaje": evaluation["regla_aplicada"]
-    }
+    if not ticket.texto or len(ticket.texto.strip()) < 5:
+        raise HTTPException(status_code=400, detail="Texto demasiado corto o vacío para clasificar")
+
+    # Usamos directamente la fachada unificada
+    return facade.process_and_create_ticket(ticket.texto)
+
+@router.post("/move-ticket")
+def move_ticket_endpoint(data: MoveTicketRequest):
+    try:
+        # Transición segura usando el Workflow a través de la fachada
+        return facade.move_ticket(data.ticket_id, data.estado_actual, data.nuevo_estado)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/tickets")
 def get_all_tickets_endpoint():
-    """
-    Ruta de lectura para que el Frontend muestre la lista de tickets.
-    """
-    # Nota: Aquí Adrian conectará su función de ticket_repo.py
     return {
         "status": "ok",
         "tickets": []
