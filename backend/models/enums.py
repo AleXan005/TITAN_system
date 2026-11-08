@@ -2,35 +2,33 @@
 
 from enum import Enum
 
-
 class Status(str, Enum):
-    """clasificador de estatus del ticket"""
-    
-    NEW = "new"
-    IN_PROGRES = "in_progres"
-    CHECK = "check"
-    FINISHED = "finished"
-
+    NUEVO = "nuevo"
+    REVISION = "revision"
+    EN_PROGRESO = "en_progreso"
+    HECHO = "hecho"
+    CERRADO = "cerrado"
 
 class Priority(str, Enum):
-    """Prioridad del ticket"""
+    BAJA = "baja"
+    MEDIA = "media"
+    ALTA = "alta"
+    CRITICA = "critica"
 
-    LOW = "low"
-    MID = "mid"
-    TOP = "top"
-    CIRTIC = "critic"
-
-
-class ticketType (str, Enum):
-    """Clasificador del tipo de ticket"""
-
+class TicketType(str, Enum):
     BUG = "bug"
     FEATURE = "feature"
-    TASK = "task"
+    TAREA = "tarea"
 
-class userRole(str, Enum):
-    """Rol de cada usuario de la aplicacion"""
+class UserRole(str, Enum):
+    """Rol de cada usuario de la aplicación."""
 
     ADMIN = "admin"
-    DEVELOPER = "developer"
-    REPORTER = "repoter"
+    DESARROLLADOR = "desarrollador"
+    REPORTADOR = "reportador"
+    DEVELOPER = "desarrollador"
+    REPORTER = "reportador"
+
+
+# Alias para código que aún usa el nombre histórico.
+userRole = UserRole

@@ -1,8 +1,6 @@
 // Configuración compartida. Es el único lugar que repite reglas del backend.
 const { useState, useEffect } = React;
 
-const API_URL = "/api/v1";
-
 // Umbral de ConfidenceRule en services/rules_engine.py
 const UMBRAL_CONFIANZA = 35;
 

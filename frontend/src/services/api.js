@@ -1,6 +1,5 @@
-const API_URL = "http://127.0.0.1:8000/api/v1";
-
 // Cliente HTTP único (fetch). Ningún componente llama a fetch directamente.
+const API_URL = "/api/v1";
 async function peticion(ruta, opciones = {}) {
   let res;
   try {

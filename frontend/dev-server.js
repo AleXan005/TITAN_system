@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 const PUERTO = 3000;
-const API = { host: "localhost", port: 8000 };
+const API = { host: "127.0.0.1", port: 8000 };
 const TIPOS = { ".html": "text/html", ".js": "text/javascript", ".jsx": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml" };
 
 http.createServer((req, res) => {

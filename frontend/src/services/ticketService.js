@@ -1,14 +1,22 @@
 // La API devuelve nombres propios del backend; la UI usa siempre este modelo.
 // Acepta `confianza` (lo que devuelve hoy) y `nivel_confianza` (nombre del Sprint II).
 function normalizarTicket(raw, id) {
+  const estado = String(raw.status ?? raw.estado ?? "nuevo").toLowerCase();
+  const estadosUI = {
+    nuevo: "NUEVO",
+    revision: "REVISION",
+    en_progreso: "EN_PROGRESO",
+    hecho: "RESOLVIDO",
+    cerrado: "CERRADO",
+  };
   return {
     id: raw.id ?? id,
-    texto: raw.texto_original ?? "",
-    categoria: raw.categoria ?? raw.categoria_asignada ?? "Sin Clasificar",
+    texto: raw.description ?? raw.texto_original ?? "",
+    categoria: raw.categoria ?? raw.categoria_asignada ?? raw.labels?.[0] ?? "Sin Clasificar",
     confianza: Number(raw.nivel_confianza ?? raw.confianza ?? 0),
-    prioridad: raw.prioridad ?? "",
-    estado: raw.estado ?? "NUEVO",
-    asignadoA: raw.agente_id ?? null,
+    prioridad: raw.priority ?? raw.prioridad ?? "",
+    estado: estadosUI[estado] ?? "NUEVO",
+    asignadoA: raw.assignee_id ?? raw.agente_id ?? null,
   };
 }
 

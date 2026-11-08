@@ -45,7 +45,7 @@ class BackendFacade:
     )
 
     # 5. Guardar en SQLite a través del repositorio de Adrián
-    self.storage.tickets.save(nuevo_ticket)
+    self.storage.tickets.add(nuevo_ticket)
 
     # 6. Notificar
     self.notifier.send(
@@ -59,19 +59,25 @@ class BackendFacade:
     res_dict["motivos_reglas"] = rules_res["motivos"]
     return res_dict
 
+  def list_tickets(self) -> list[dict]:
+    """Devuelve los tickets persistidos en formato serializable."""
+    return [ticket.to_dict() for ticket in self.storage.tickets.list_all()]
+
   def move_ticket(
       self, ticket_id: str, current_state: str, new_state: str
   ) -> dict:
     """Transición de estado con Workflow y persistencia."""
+    estado_actual = current_state.upper()
+    estado_objetivo = new_state.upper()
     estado_nuevo = WorkflowManager.validate_and_transition(
-        current_state, new_state
+        estado_actual, estado_objetivo
     )
 
     # Si el ticket existe en BD, actualizamos su estado
-    ticket = self.storage.tickets.get_by_id(ticket_id)
-    if ticket:
-      ticket.change_status(estado_nuevo.lower())
-      self.storage.tickets.save(ticket)
+    ticket = self.storage.tickets.get(ticket_id)
+    estado_dominio = "hecho" if estado_nuevo == "RESOLVIDO" else estado_nuevo.lower()
+    ticket.change_status(estado_dominio)
+    self.storage.tickets.update(ticket)
 
     return {
         "ticket_id": ticket_id,

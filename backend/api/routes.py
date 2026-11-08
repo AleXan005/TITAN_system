@@ -9,7 +9,7 @@ class TicketRequest(BaseModel):
     texto: str
 
 class MoveTicketRequest(BaseModel):
-    ticket_id: int
+    ticket_id: str
     estado_actual: str
     nuevo_estado: str
 
@@ -33,5 +33,5 @@ def move_ticket_endpoint(data: MoveTicketRequest):
 def get_all_tickets_endpoint():
     return {
         "status": "ok",
-        "tickets": []
+        "tickets": facade.list_tickets()
     }

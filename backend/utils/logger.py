@@ -14,8 +14,10 @@ from __future__ import annotations
 import logging
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from config.settings import Settings
+if TYPE_CHECKING:
+    from config.settings import Settings
 
 ROOT_LOGGER_NAME = "ticket_automator"
 LOG_FORMAT = "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
