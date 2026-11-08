@@ -1,44 +1,80 @@
-from services.ml_service import MLService
-from services.rules_engine import RulesEngine
-from services.workflow import WorkflowManager, TicketState
-from services.notifier import ConsoleNotifier
+from models.ticket import Ticket
 from services.assignment import AssignmentService
+from services.ml_service import MLService
+from services.notifier import ConsoleNotifier
+from services.rules_engine import RulesEngine
+from services.workflow import TicketState, WorkflowManager
+from storage.factory import create_sqlite_storage
+
 
 class BackendFacade:
-    def __init__(self, repo=None):
-        self.repo = repo
-        self.ml_service = MLService()
-        self.rules_engine = RulesEngine()
-        self.notifier = ConsoleNotifier()
-        self.assignment_service = AssignmentService(notifier=self.notifier)
 
-    def process_and_create_ticket(self, texto: str) -> dict:
-        """Método principal usado por el frontend para procesar un nuevo ticket."""
-        # 1. Inferencia de IA
-        ml_res = self.ml_service.predict_ticket(texto)
-        
-        # 2. Evaluación con el Motor de Reglas
-        ticket_payload = {"texto": texto, "confianza": ml_res["confianza"]}
-        rules_res = self.rules_engine.process(ticket_payload)
+  def __init__(self, db_path: str = "data/tickets.db"):
+    self.storage = create_sqlite_storage(db_path)
+    self.ml_service = MLService()
+    self.rules_engine = RulesEngine()
+    self.notifier = ConsoleNotifier()
+    self.assignment_service = AssignmentService(notifier=self.notifier)
 
-        # 3. Estado inicial usando Workflow
-        estado_inicial = TicketState.REVISION if rules_res["estado_asignacion"] == "REVISION_MANUAL" else TicketState.NUEVO
+  def process_and_create_ticket(self, texto: str) -> dict:
+    """Procesa el ticket con IA + Reglas y lo guarda en la base de datos."""
+    # 1. Inferencia de IA
+    ml_res = self.ml_service.predict_ticket(texto)
 
-        ticket_creado = {
-            "texto_original": texto,
-            "categoria": ml_res["categoria"],
-            "confianza": ml_res["confianza"],
-            "prioridad": rules_res["prioridad"],
-            "estado": estado_inicial,
-            "motivos_reglas": rules_res["motivos"]
-        }
+    # 2. Evaluación con el Motor de Reglas
+    ticket_payload = {"texto": texto, "confianza": ml_res["confianza"]}
+    rules_res = self.rules_engine.process(ticket_payload)
 
-        # 4. Notificar
-        self.notifier.send("Soporte_Admin", f"Nuevo ticket creado con estado {estado_inicial}")
+    # 3. Estado inicial usando Workflow
+    estado_inicial = (
+        TicketState.REVISION
+        if rules_res["estado_asignacion"] == "REVISION_MANUAL"
+        else TicketState.NUEVO
+    )
 
-        return ticket_creado
+    # 4. Crear el modelo de Dominio (modelo Ticket de Adrián)
+    # Truncamos el título a 100 caracteres por la regla de validación de Ticket
+    titulo_limpio = texto[:100] if len(texto) > 100 else texto
 
-    def move_ticket(self, ticket_id: int, current_state: str, new_state: str) -> dict:
-        """Transición de estado segura usando el WorkflowManager."""
-        estado_nuevo = WorkflowManager.validate_and_transition(current_state, new_state)
-        return {"ticket_id": ticket_id, "nuevo_estado": estado_nuevo, "status": "Transición exitosa"}
+    nuevo_ticket = Ticket(
+        title=titulo_limpio,
+        description=texto,
+        priority=rules_res["prioridad"].lower(),  # "alta", "media", "baja"
+        status=estado_inicial.lower(),
+        labels=[ml_res["categoria"]],
+    )
+
+    # 5. Guardar en SQLite a través del repositorio de Adrián
+    self.storage.tickets.save(nuevo_ticket)
+
+    # 6. Notificar
+    self.notifier.send(
+        "Soporte_Admin", f"Nuevo ticket creado con ID {nuevo_ticket.id}"
+    )
+
+    # 7. Retornar diccionario para el frontend
+    res_dict = nuevo_ticket.to_dict()
+    res_dict["categoria"] = ml_res["categoria"]
+    res_dict["confianza"] = ml_res["confianza"]
+    res_dict["motivos_reglas"] = rules_res["motivos"]
+    return res_dict
+
+  def move_ticket(
+      self, ticket_id: str, current_state: str, new_state: str
+  ) -> dict:
+    """Transición de estado con Workflow y persistencia."""
+    estado_nuevo = WorkflowManager.validate_and_transition(
+        current_state, new_state
+    )
+
+    # Si el ticket existe en BD, actualizamos su estado
+    ticket = self.storage.tickets.get_by_id(ticket_id)
+    if ticket:
+      ticket.change_status(estado_nuevo.lower())
+      self.storage.tickets.save(ticket)
+
+    return {
+        "ticket_id": ticket_id,
+        "nuevo_estado": estado_nuevo,
+        "status": "Transición exitosa",
+    }
